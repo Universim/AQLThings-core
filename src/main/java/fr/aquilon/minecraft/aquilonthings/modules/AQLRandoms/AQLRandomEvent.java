@@ -30,8 +30,11 @@ public class AQLRandomEvent extends Event implements AquilonEvent<AQLRandoms> {
     private final String bonusString;
     private final CharacterSkill skill;
     private final int value;
+    private final ChatColor maxColor;
+    private final ChatColor minColor;
 
-    public AQLRandomEvent(Player sender, int limit, boolean secret, String bonusString, CharacterSkill skill) {
+    public AQLRandomEvent(Player sender, int limit, boolean secret, String bonusString, CharacterSkill skill,
+            boolean reverse) {
         this.sender = sender;
         this.limit = limit;
         this.secret = secret;
@@ -40,46 +43,50 @@ public class AQLRandomEvent extends Event implements AquilonEvent<AQLRandoms> {
             throw new IllegalArgumentException("Malformed bonus string");
         this.skill = skill;
         Random alea = new Random();
-        this.value = alea.nextInt(limit)+1;
+        this.value = alea.nextInt(limit) + 1;
+        this.maxColor = reverse ? ChatColor.RED : ChatColor.GREEN;
+        this.minColor = reverse ? ChatColor.GRAY : ChatColor.RED;
     }
 
     @Override
     public JSONObject toJSON() {
         JSONObject res = new JSONObject();
-        res.put("secret",isSecret());
-        res.put("name",getFinalValue());
-        res.put("roll",getValue());
-        res.put("limit",getLimit());
+        res.put("secret", isSecret());
+        res.put("name", getFinalValue());
+        res.put("roll", getValue());
+        res.put("limit", getLimit());
         String[] customBonus = getCustomBonuses();
         if (customBonus != null && customBonus.length > 0) {
             res.put("customBonus", JSONUtils.jsonArray(customBonus));
         }
-        if (skill!=null) {
-            res.put("skill",skill.toJSON());
-            res.put("skillBonus",getSkillBonus());
+        if (skill != null) {
+            res.put("skill", skill.toJSON());
+            res.put("skillBonus", getSkillBonus());
         }
-        res.put("totalBonus",getTotalBonus());
+        res.put("totalBonus", getTotalBonus());
         res.put("sender", JSONPlayer.toJSON(sender, false));
         return res;
     }
 
     @Override
     public void call(AQLRandoms m) {
-        String rollColor = (value==limit ? ChatColor.GREEN : (value==1 ? ChatColor.RED : "")).toString();
+        String rollColor = (value == limit ? this.maxColor : (value == 1 ? this.minColor : "")).toString();
         String text = rollColor + value + " sur " + limit + ChatColor.YELLOW;
         String bonusText = getBonusText();
-        if (bonusText!=null) {
-            text += " ("+bonusText+"), résultat : "+ChatColor.WHITE+getFinalValue();
+        if (bonusText != null) {
+            text += " (" + bonusText + "), résultat : " + ChatColor.WHITE + getFinalValue();
         }
-        sender.sendMessage((secret?ChatColor.GRAY+"[Secret] ":"") + ChatColor.YELLOW + "Vous tirez " + text);
+        sender.sendMessage((secret ? ChatColor.GRAY + "[Secret] " : "") + ChatColor.YELLOW + "Vous tirez " + text);
         for (Entity e : sender.getNearbyEntities(50, 50, 50)) {
-            if (!(e instanceof Player)) continue;
+            if (!(e instanceof Player))
+                continue;
             // Si le random est secret et que la cible est pas staff on skip.
-            if (secret && !e.hasPermission(AQLRandoms.PERM_RANDOM_SEE_SECRET)) continue;
-            e.sendMessage((secret?ChatColor.GRAY+"[Secret] ":"") + Utils.decoratePlayerName(sender) +
+            if (secret && !e.hasPermission(AQLRandoms.PERM_RANDOM_SEE_SECRET))
+                continue;
+            e.sendMessage((secret ? ChatColor.GRAY + "[Secret] " : "") + Utils.decoratePlayerName(sender) +
                     ChatColor.YELLOW + " a tiré un " + text);
         }
-        AQLMisc.LOGGER.mInfo("[Random]"+(secret?"[Secret]":"")+" " +
+        AQLMisc.LOGGER.mInfo("[Random]" + (secret ? "[Secret]" : "") + " " +
                 sender.getName() + " tire " + ChatColor.stripColor(text));
         Bukkit.getServer().getPluginManager().callEvent(this);
     }
@@ -89,7 +96,7 @@ public class AQLRandomEvent extends Event implements AquilonEvent<AQLRandoms> {
     }
 
     public String[] getCustomBonuses() {
-        return bonusString.split("(?=[\\+-])");
+        return bonusString != null ? bonusString.split("(?=[\\+-])") : new String[0];
     }
 
     public int getCustomBonus() {
@@ -115,29 +122,34 @@ public class AQLRandomEvent extends Event implements AquilonEvent<AQLRandoms> {
     }
 
     public int getSkillBonus() {
-        if (skill == null) return 0;
+        if (skill == null)
+            return 0;
         return skill.getBonus();
     }
 
     public String getSkillBonusText() {
-        if (skill == null) return "";
-        String pre = skill.getCategory()+" - "+skill.getName()+": ";
+        if (skill == null)
+            return "";
+        String pre = skill.getCategory() + " - " + skill.getName() + ": ";
         int skillBonus = getSkillBonus();
-        if (skillBonus>=0) return pre+"+"+skillBonus;
-        return pre+skillBonus;
+        if (skillBonus >= 0)
+            return pre + "+" + skillBonus;
+        return pre + skillBonus;
     }
 
     public int getTotalBonus() {
-        return getCustomBonus()+getSkillBonus();
+        return getCustomBonus() + getSkillBonus();
     }
 
     public String getBonusText() {
         int totalBonus = getTotalBonus();
-        if (totalBonus==0 && getSkill()==null) return null;
+        if (totalBonus == 0 && getSkill() == null)
+            return null;
         String res = getSkillBonusText();
         String[] customBonus = getCustomBonuses();
-        if (customBonus!= null && customBonus.length>0) {
-            if (res.length()>0) res += ", ";
+        if (customBonus != null && customBonus.length > 0) {
+            if (res.length() > 0)
+                res += ", ";
             res += String.join(" ", customBonus);
         }
         return res;
@@ -148,7 +160,7 @@ public class AQLRandomEvent extends Event implements AquilonEvent<AQLRandoms> {
     }
 
     public int getFinalValue() {
-        return value+getTotalBonus();
+        return value + getTotalBonus();
     }
 
     public Player getSender() {

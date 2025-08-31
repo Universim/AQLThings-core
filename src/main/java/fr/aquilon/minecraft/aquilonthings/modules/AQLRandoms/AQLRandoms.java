@@ -12,6 +12,7 @@ import fr.aquilon.minecraft.aquilonthings.modules.AQLCharacters.model.CharacterS
 import fr.aquilon.minecraft.aquilonthings.modules.AQLCharacters.model.Skill;
 import fr.aquilon.minecraft.aquilonthings.modules.IModule;
 import fr.aquilon.minecraft.aquilonthings.utils.Utils;
+
 import org.bukkit.ChatColor;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
@@ -25,23 +26,24 @@ import java.util.stream.Collectors;
 /**
  * An AQLThings module providing a command to roll dices with bonuses/maluses
  * Note: This module depends on AQLCharacters
+ * 
  * @author BilliAlpha (billi.pamege.300@gmail.com)
  */
-@AQLThingsModule(
-		name = "AQLRandoms",
-		cmds = {
-				@Cmd(value = AQLRandoms.CMD_RANDOM, desc = "Tire un nombre au hasard")
-		}
-)
+@AQLThingsModule(name = "AQLRandoms", cmds = {
+		@Cmd(value = AQLRandoms.CMD_RANDOM, desc = "Tire un nombre au hasard")
+})
 public class AQLRandoms implements IModule {
 	public static final ModuleLogger LOGGER = ModuleLogger.get();
 
 	public static final String CMD_RANDOM = "random";
 
-	public static final String PERM_RANDOM_SEE_SECRET = AquilonThings.PERM_ROOT+".random.secret";
+	public static final String PERM_RANDOM_SEE_SECRET = AquilonThings.PERM_ROOT + ".random.secret";
+
+	public boolean reverse = true;
 
 	@Override
 	public boolean onStartUp(DatabaseConnector db) {
+
 		return true;
 	}
 
@@ -52,28 +54,29 @@ public class AQLRandoms implements IModule {
 
 	@Override
 	public boolean onCommand(CommandSender sender, Command cmd, String scmd, String[] rawArgs) {
-		if(!scmd.equalsIgnoreCase(CMD_RANDOM)) return false;
+		if (!scmd.equalsIgnoreCase(CMD_RANDOM))
+			return false;
 		if (!(sender instanceof Player)) {
 			sender.sendMessage("Commande joueur uniqument.");
 			return true;
 		}
 		String params = Utils.joinStrings(rawArgs, " ");
 		Player p = ((Player) sender);
-		String uuid = p.getUniqueId().toString().replaceAll("-","");
+		String uuid = p.getUniqueId().toString().replaceAll("-", "");
 		AQLCharacters characters = AquilonThings.instance.getModuleData(AQLCharacters.class);
 		boolean withSkills = characters != null;
 		int max = 20;
 		String bonusString;
 		boolean priv = false;
 		CharacterSkill charSkill = null;
-		String usage = ChatColor.YELLOW+"Exemple: "+
-				ChatColor.WHITE+"/random 50 + 6 - 4 + 2 secret";
+		String usage = ChatColor.YELLOW + "Exemple: " +
+				ChatColor.WHITE + "/random 50 + 6 - 4 + 2 secret";
 		if (withSkills)
-				usage += ChatColor.YELLOW+" ou "+ChatColor.WHITE+"/random MED +1 privé";
+			usage += ChatColor.YELLOW + " ou " + ChatColor.WHITE + "/random MED +1 privé";
 		String args = params.toLowerCase().trim();
-		if (args.length()>0 && (args.contains("privé") || args.contains("secret"))) {
+		if (args.length() > 0 && (args.contains("privé") || args.contains("secret"))) {
 			priv = true;
-			args = args.replaceAll("privé","").replaceAll("secret","").trim();
+			args = args.replaceAll("privé", "").replaceAll("secret", "").trim();
 		}
 
 		List<ParamToken> tokens;
@@ -115,11 +118,13 @@ public class AQLRandoms implements IModule {
 		bonusString = tokens.stream()
 				.filter(t -> t.type == ParamTokenType.MODIFIER)
 				.map(ParamToken::getValue)
-				.collect(Collectors.joining());
+				.collect(Collectors.collectingAndThen(
+						Collectors.joining(),
+						s -> s.isEmpty() ? null : s));
 
 		AQLRandomEvent evt;
 		try {
-			evt = new AQLRandomEvent(p, max, priv, bonusString, charSkill);
+			evt = new AQLRandomEvent(p, max, priv, bonusString, charSkill, this.reverse);
 		} catch (IllegalArgumentException ex) {
 			sender.sendMessage(ChatColor.YELLOW + "Syntaxe invalide : " + ChatColor.WHITE + args + "\n" + usage);
 			return true;
@@ -129,12 +134,11 @@ public class AQLRandoms implements IModule {
 	}
 
 	public CharacterSkill findCharSkill(AQLCharacters characters, String uuid, String skillKey)
-			throws IllegalArgumentException
-	{
+			throws IllegalArgumentException {
 		CharacterDatabase charDB = characters.getCharacterDB();
-		Skill skill =  charDB.findSkillFromShorthand(skillKey);
-		if (skill==null) {
-			throw new IllegalArgumentException("Unknown skill: "+skillKey);
+		Skill skill = charDB.findSkillFromShorthand(skillKey);
+		if (skill == null) {
+			throw new IllegalArgumentException("Unknown skill: " + skillKey);
 		}
 		CharacterPlayer charP = charDB.findPlayer(uuid);
 		int charid = charP == null ? 0 : charP.getSelectedCharacter();
@@ -150,6 +154,33 @@ public class AQLRandoms implements IModule {
 		return charSkill;
 	}
 
+	// static private String padOperators(String str, String operator, char pad) {
+	// StringBuilder sb = new StringBuilder();
+	// boolean wasASpace = false;
+	// boolean wasAChar = false;
+	// for (int i = 0; i < str.length(); i++) {
+	// char c = str.charAt(i);
+	// if (c == pad) {
+	// wasASpace = true;
+	// } else if (wasAChar) {
+	// sb.append(pad);
+	// }
+	// if (operator.indexOf(c) >= 0) {
+	// if (!wasASpace) {
+	// sb.append(pad);
+	// }
+	// wasAChar = true;
+	// } else {
+	// wasAChar = false;
+	// }
+	// if (c != pad) {
+	// wasASpace = false;
+	// }
+	// sb.append(c);
+	// }
+	// return sb.toString();
+	// }
+
 	private static List<ParamToken> splitTokens(String params, boolean withSkills) throws ParamParsingError {
 		List<ParamToken> res = new ArrayList<>();
 		StringBuilder str = new StringBuilder();
@@ -164,7 +195,6 @@ public class AQLRandoms implements IModule {
 			char c = params.charAt(i);
 			if (c == ' ') {
 				continue; // Ignore spaces
-				// FIXME: we should only ignore spaces around '+' and '-'
 			} else if (c == '+' || c == '-') {
 				currType = ParamTokenType.MODIFIER;
 				forceNext = true; // New modifier
@@ -237,7 +267,7 @@ public class AQLRandoms implements IModule {
 
 		@Override
 		public String getMessage() {
-			return "Invalid parameters: "+msg+" at position "+pos+": "+params;
+			return "Invalid parameters: " + msg + " at position " + pos + ": " + params;
 		}
 	}
 }

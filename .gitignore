@@ -24,3 +24,9 @@ target/
 
 # Linux temp files
 *~
+
+.gradle/*
+build/*
+
+gradlew*
+gradle-wrapper.jar
