@@ -16,7 +16,10 @@ import org.bukkit.event.block.BlockIgniteEvent;
 import org.json.JSONObject;
 
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashSet;
 import java.util.Random;
+import java.util.Set;
 
 /**
  * Created on 13/07/2017.
@@ -30,6 +33,12 @@ public class AQLFireEvent extends Event implements AquilonEvent<AQLFire> {
     private Player player;
     private BlockIgniteEvent event;
 
+    private Material[] whitelist = {
+            Material.CAMPFIRE,
+            Material.SOUL_CAMPFIRE,
+            Material.CANDLE,
+    };
+    private Set<Material> whiteList = new HashSet<>(Arrays.asList(whitelist));
     private ArrayList<JSONPlayer> targetsNear;
     private ArrayList<JSONPlayer> targetsFar;
     private int fireCount = -1;
@@ -59,13 +68,17 @@ public class AQLFireEvent extends Event implements AquilonEvent<AQLFire> {
         }
         // On autorise les membres à poser du feu mais on prévient le staff
         if (cause.equals(BlockIgniteEvent.IgniteCause.FLINT_AND_STEEL)) {
-            cancel = false;
+            // certains blocks ne génèrent pas de message (feu de camp, bougie ...)
+            if (whiteList.contains(event.getBlock().getType())) {
+                cancel = true;
+            }
         }
         // Si le feu se répands
         if (cause.equals(BlockIgniteEvent.IgniteCause.SPREAD)) {
             cancel = false;
         }
-        if (cancel) event.setCancelled(true);
+        if (cancel)
+            event.setCancelled(true);
     }
 
     public void call(AQLFire f) {
