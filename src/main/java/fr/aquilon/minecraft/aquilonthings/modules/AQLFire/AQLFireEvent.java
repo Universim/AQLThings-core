@@ -32,9 +32,16 @@ public class AQLFireEvent extends Event implements AquilonEvent<AQLFire> {
     private BlockIgniteEvent.IgniteCause cause;
     private Player player;
     private BlockIgniteEvent event;
+    private Material target_material;
 
+    // some block can be lit by a flint and steel without any staff warning
     private Set<Material> whiteList = new HashSet<>(
-            Arrays.asList(Material.CAMPFIRE, Material.SOUL_CAMPFIRE, Material.CANDLE));
+            Arrays.asList(Material.CAMPFIRE, Material.SOUL_CAMPFIRE, Material.CANDLE, Material.WHITE_CANDLE,
+                    Material.LIGHT_GRAY_CANDLE, Material.GRAY_CANDLE, Material.BLACK_CANDLE, Material.BROWN_CANDLE,
+                    Material.RED_CANDLE, Material.ORANGE_CANDLE, Material.YELLOW_CANDLE, Material.LIME_CANDLE,
+                    Material.GREEN_CANDLE, Material.CYAN_CANDLE, Material.LIGHT_BLUE_CANDLE, Material.BLUE_CANDLE,
+                    Material.PURPLE_CANDLE, Material.MAGENTA_CANDLE, Material.PINK_CANDLE, Material.NETHERRACK,
+                    Material.OBSIDIAN, Material.SOUL_SOIL, Material.SOUL_SAND));
     private ArrayList<JSONPlayer> targetsNear;
     private ArrayList<JSONPlayer> targetsFar;
     private int fireCount = -1;
@@ -46,6 +53,7 @@ public class AQLFireEvent extends Event implements AquilonEvent<AQLFire> {
         this.position = event.getBlock().getLocation();
         this.cause = event.getCause();
         this.player = event.getPlayer();
+        this.target_material = event.getBlock().getType();
         targetsNear = new ArrayList<>();
         targetsFar = new ArrayList<>();
         cancelFire(event);
@@ -65,10 +73,7 @@ public class AQLFireEvent extends Event implements AquilonEvent<AQLFire> {
         }
         // On autorise les membres à poser du feu mais on prévient le staff
         if (cause.equals(BlockIgniteEvent.IgniteCause.FLINT_AND_STEEL)) {
-            // certains blocks ne génèrent pas de message (feu de camp, bougie ...)
-            if (whiteList.contains(event.getBlock().getType())) {
-                cancel = true;
-            }
+            cancel = false;
         }
         // Si le feu se répands
         if (cause.equals(BlockIgniteEvent.IgniteCause.SPREAD)) {
@@ -82,7 +87,8 @@ public class AQLFireEvent extends Event implements AquilonEvent<AQLFire> {
         if (event.isCancelled())
             return;
         boolean bubble = false;
-        if (cause.equals(BlockIgniteEvent.IgniteCause.FLINT_AND_STEEL) && !player.hasPermission(AQLFire.PERM_ALLOWED)) {
+        if (cause.equals(BlockIgniteEvent.IgniteCause.FLINT_AND_STEEL) && !player.hasPermission(AQLFire.PERM_ALLOWED)
+                && !whiteList.contains(target_material)) {
             Utils.warnStaff(AQLFire.class,
                     Utils.decoratePlayerName(player) + ChatColor.RED + " est en train d'utiliser du feu ! " +
                             ChatColor.WHITE + "/tpfire" + ChatColor.RED + " pour vous y téléporter.");
