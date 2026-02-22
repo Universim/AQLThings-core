@@ -24,6 +24,16 @@ Modules can be dependent on each other and can use other plugins.
 Currently all modules are contained within a single JAR file
 however a dynamic module loading system is being developed.
 
+## Building
+
+To build the plugin from sources, please use the following commands
+```
+# Run this only one time to generate a context file
+.\tools\generate-context.sh
+# Run this every time you want to compile
+./gradlew shadowJar
+```
+
 ## Wiki
 
 Head over to the wiki to get more informations and details of each module: https://github.com/aqlthings/AQLThings-core/wiki

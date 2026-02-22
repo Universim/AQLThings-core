@@ -16,7 +16,10 @@ import org.bukkit.event.block.BlockIgniteEvent;
 import org.json.JSONObject;
 
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashSet;
 import java.util.Random;
+import java.util.Set;
 
 /**
  * Created on 13/07/2017.
@@ -29,7 +32,16 @@ public class AQLFireEvent extends Event implements AquilonEvent<AQLFire> {
     private BlockIgniteEvent.IgniteCause cause;
     private Player player;
     private BlockIgniteEvent event;
+    private Material target_material;
 
+    // some block can be lit by a flint and steel without any staff warning
+    private Set<Material> whiteList = new HashSet<>(
+            Arrays.asList(Material.CAMPFIRE, Material.SOUL_CAMPFIRE, Material.CANDLE, Material.WHITE_CANDLE,
+                    Material.LIGHT_GRAY_CANDLE, Material.GRAY_CANDLE, Material.BLACK_CANDLE, Material.BROWN_CANDLE,
+                    Material.RED_CANDLE, Material.ORANGE_CANDLE, Material.YELLOW_CANDLE, Material.LIME_CANDLE,
+                    Material.GREEN_CANDLE, Material.CYAN_CANDLE, Material.LIGHT_BLUE_CANDLE, Material.BLUE_CANDLE,
+                    Material.PURPLE_CANDLE, Material.MAGENTA_CANDLE, Material.PINK_CANDLE, Material.NETHERRACK,
+                    Material.OBSIDIAN, Material.SOUL_SOIL, Material.SOUL_SAND));
     private ArrayList<JSONPlayer> targetsNear;
     private ArrayList<JSONPlayer> targetsFar;
     private int fireCount = -1;
@@ -41,6 +53,7 @@ public class AQLFireEvent extends Event implements AquilonEvent<AQLFire> {
         this.position = event.getBlock().getLocation();
         this.cause = event.getCause();
         this.player = event.getPlayer();
+        this.target_material = event.getBlock().getType();
         targetsNear = new ArrayList<>();
         targetsFar = new ArrayList<>();
         cancelFire(event);
@@ -48,7 +61,8 @@ public class AQLFireEvent extends Event implements AquilonEvent<AQLFire> {
 
     private void cancelFire(BlockIgniteEvent event) {
         boolean cancel = true; // Par défaut on annule
-        if (cause == BlockIgniteEvent.IgniteCause.LAVA || event.getBlock().getWorld().getEnvironment() != World.Environment.NORMAL) {
+        if (cause == BlockIgniteEvent.IgniteCause.LAVA
+                || event.getBlock().getWorld().getEnvironment() != World.Environment.NORMAL) {
             // Pas d'incendie ailleurs que dans l'overworld / Pas d'incendie dus à la lave.
             cancel = true;
         }
@@ -65,19 +79,23 @@ public class AQLFireEvent extends Event implements AquilonEvent<AQLFire> {
         if (cause.equals(BlockIgniteEvent.IgniteCause.SPREAD)) {
             cancel = false;
         }
-        if (cancel) event.setCancelled(true);
+        if (cancel)
+            event.setCancelled(true);
     }
 
     public void call(AQLFire f) {
-        if (event.isCancelled()) return;
+        if (event.isCancelled())
+            return;
         boolean bubble = false;
-        if (cause.equals(BlockIgniteEvent.IgniteCause.FLINT_AND_STEEL) && !player.hasPermission(AQLFire.PERM_ALLOWED)) {
-            Utils.warnStaff(AQLFire.class, Utils.decoratePlayerName(player) + ChatColor.RED + " est en train d'utiliser du feu ! " +
-                    ChatColor.WHITE+"/tpfire"+ChatColor.RED+" pour vous y téléporter.");
+        if (cause.equals(BlockIgniteEvent.IgniteCause.FLINT_AND_STEEL) && !player.hasPermission(AQLFire.PERM_ALLOWED)
+                && !whiteList.contains(target_material)) {
+            Utils.warnStaff(AQLFire.class,
+                    Utils.decoratePlayerName(player) + ChatColor.RED + " est en train d'utiliser du feu ! " +
+                            ChatColor.WHITE + "/tpfire" + ChatColor.RED + " pour vous y téléporter.");
             f.registerAlert(position, true);
             bubble = true;
         } else if (cause.equals(BlockIgniteEvent.IgniteCause.SPREAD) && f.checkAlert(position)) {
-            //On vérifie le nombre de blocs de feu dans les blocs alentours
+            // On vérifie le nombre de blocs de feu dans les blocs alentours
             int blockX = position.getBlockX();
             int blockY = position.getBlockY();
             int blockZ = position.getBlockZ();
@@ -86,7 +104,8 @@ public class AQLFireEvent extends Event implements AquilonEvent<AQLFire> {
             for (int x = -r; x <= r; x++) {
                 for (int y = -r; y <= r; y++) {
                     for (int z = -r; z <= r; z++) {
-                        if (position.getWorld().getBlockAt(blockX + x, blockY + y, blockZ + z).getType().equals(Material.FIRE)) {
+                        if (position.getWorld().getBlockAt(blockX + x, blockY + y, blockZ + z).getType()
+                                .equals(Material.FIRE)) {
                             fireCount++;
                         }
                     }
@@ -94,17 +113,20 @@ public class AQLFireEvent extends Event implements AquilonEvent<AQLFire> {
             }
 
             ArrayList<String> ignoreList = new ArrayList<>();
-            if (fireCount>=f.getMinBlocksAlertPlayers()) {
+            if (fireCount >= f.getMinBlocksAlertPlayers()) {
                 for (Player currentPlayer : Bukkit.getOnlinePlayers()) {
                     Location pLoc = currentPlayer.getLocation();
-                    if (pLoc.getWorld()!=position.getWorld()) continue;
+                    if (pLoc.getWorld() != position.getWorld())
+                        continue;
                     if (pLoc.distance(position) <= f.getRadiusAlert()) {
-                        //Envoi du message en rouge
-                        currentPlayer.sendMessage(ChatColor.RED + "[Event] Un incendie semble s'être déclaré aux alentours proches !");
+                        // Envoi du message en rouge
+                        currentPlayer.sendMessage(
+                                ChatColor.RED + "[Event] Un incendie semble s'être déclaré aux alentours proches !");
                         targetsNear.add(new JSONPlayer(currentPlayer));
                     } else if (pLoc.distance(position) <= f.getRadiusAlertFar()) {
-                        //Envoi du message en bleu
-                        currentPlayer.sendMessage(ChatColor.DARK_AQUA + "[Event] Un incendie semble s'être déclaré aux alentours !");
+                        // Envoi du message en bleu
+                        currentPlayer.sendMessage(
+                                ChatColor.DARK_AQUA + "[Event] Un incendie semble s'être déclaré aux alentours !");
                         targetsFar.add(new JSONPlayer(currentPlayer));
                     }
                     if (Utils.playerHasWarningPerm(currentPlayer, AQLFire.class))
@@ -113,19 +135,22 @@ public class AQLFireEvent extends Event implements AquilonEvent<AQLFire> {
                 f.registerAlert(position);
                 bubble = true;
             }
-            if (fireCount>=f.getMinBlocksAlertStaff()) {
+            if (fireCount >= f.getMinBlocksAlertStaff()) {
                 Utils.warnStaff(AQLFire.class,
-                        ChatColor.RED.toString() + "Un incendie semble s'être déclaré en " + blockX + "/" + blockY + "/" + blockZ +
-                                " (" + ChatColor.GRAY.toString() + position.getWorld().getName() + ChatColor.RED.toString() + ") ! " +
-                                ChatColor.WHITE.toString() + "/tpfire" + ChatColor.RED.toString()+" pour vous y téléporter.",
-                        ignoreList.toArray(new String[0])
-                );
+                        ChatColor.RED.toString() + "Un incendie semble s'être déclaré en " + blockX + "/" + blockY + "/"
+                                + blockZ +
+                                " (" + ChatColor.GRAY.toString() + position.getWorld().getName()
+                                + ChatColor.RED.toString() + ") ! " +
+                                ChatColor.WHITE.toString() + "/tpfire" + ChatColor.RED.toString()
+                                + " pour vous y téléporter.",
+                        ignoreList.toArray(new String[0]));
                 f.registerAlert(position, true);
                 bubble = true;
             }
         }
 
-        if (bubble) Bukkit.getServer().getPluginManager().callEvent(this);
+        if (bubble)
+            Bukkit.getServer().getPluginManager().callEvent(this);
     }
 
     @Override
@@ -133,7 +158,7 @@ public class AQLFireEvent extends Event implements AquilonEvent<AQLFire> {
         JSONObject res = new JSONObject();
         res.put("type", cause.name());
         res.put("position", JSONUtils.jsonLocation(position));
-        res.put("player", (event.getPlayer()!=null?JSONPlayer.toJSON(event.getPlayer(), false):JSONObject.NULL));
+        res.put("player", (event.getPlayer() != null ? JSONPlayer.toJSON(event.getPlayer(), false) : JSONObject.NULL));
         JSONObject targets = new JSONObject();
         if (!targetsNear.isEmpty()) {
             targets.put("near", JSONUtils.jsonArray(targetsNear));
@@ -141,8 +166,10 @@ public class AQLFireEvent extends Event implements AquilonEvent<AQLFire> {
         if (!targetsFar.isEmpty()) {
             targets.put("far", JSONUtils.jsonArray(targetsFar));
         }
-        if (!targets.isEmpty()) res.put("targetedPlayers", targets);
-        if (fireCount!=-1) res.put("fireCount", fireCount);
+        if (!targets.isEmpty())
+            res.put("targetedPlayers", targets);
+        if (fireCount != -1)
+            res.put("fireCount", fireCount);
         return res;
     }
 
