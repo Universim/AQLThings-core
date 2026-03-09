@@ -17,6 +17,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.inventory.InventoryType;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.BookMeta;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.inventory.meta.LeatherArmorMeta;
 import org.bukkit.inventory.meta.SkullMeta;
@@ -35,6 +36,7 @@ import java.util.UUID;
                 @Cmd(value = "head", desc = "Obtenir une tête de joueur"),
                 @Cmd(value = "armor", desc = "Obtenir une armure en cuir d'une couleur donnée"),
                 @Cmd(value = "name", desc = "Renommer un item"),
+                @Cmd(value = "author", desc = "Changer l'auteur d'un livre"),
                 @Cmd(value = "lore", desc = "Définir la description d'un item"),
                 @Cmd(value = "openinv", desc = "Ouvrir l'inventaire d'un joueur"),
                 @Cmd(value = "openender", desc = "Ouvrir l'enderchest d'un joueur")
@@ -176,6 +178,27 @@ public class AQLStaff implements IModule {
             item.setItemMeta(meta);
             p.getInventory().setItemInMainHand(item);
             p.sendMessage(ChatColor.YELLOW + "Nom défini : "+ChatColor.WHITE+ChatColor.ITALIC+coloredName);
+            return true;
+        } else if (cmd.equalsIgnoreCase("author")) {
+            ItemStack item = p.getInventory().getItemInMainHand();
+            if (item.getType()!=Material.WRITTEN_BOOK || item.getAmount()==0) {
+                sender.sendMessage(ChatColor.YELLOW + "Sans livre c'est plus dur !");
+                return true;
+            }
+            
+            BookMeta meta = (BookMeta) item.getItemMeta();
+
+            if (args.length<1) {
+                sender.sendMessage(ChatColor.RED + "Il faut peut-être préciser un nom...");
+                return true;
+            }
+            String name = Utils.joinStrings(args, " ");
+            String coloredName = ChatColor.translateAlternateColorCodes('&', name);
+
+            meta.setAuthor(coloredName);
+            item.setItemMeta(meta);
+            p.getInventory().setItemInMainHand(item);
+            p.sendMessage(ChatColor.YELLOW + "Auteur défini : "+ChatColor.WHITE+ChatColor.ITALIC+coloredName);
             return true;
         } else if (cmd.equalsIgnoreCase("lore")) {
             if (args.length<2) return false;
